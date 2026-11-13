@@ -1,0 +1,16 @@
+{
+  "name": "Eddie D-Lab",
+  "short_name": "Eddie",
+  "description": "Room climate and pictures for the Eddie e-paper display, over Bluetooth.",
+  "start_url": "./index.html#home",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#eceee9",
+  "theme_color": "#eceee9",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

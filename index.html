@@ -1,0 +1,636 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Installable app (PWA). Left out of the claude.ai preview, which build_artifact.py makes from the BUILD parts. -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<!-- BUILD:HEAD-START -->
+<title>Eddie D-Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#eceee9">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@700&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one phone column (target Galaxy S25 Ultra, 412 CSS px), four tabs at the bottom in thumb
+   reach. Create pins the 200 x 200 result under the top bar while the controls scroll. */
+:root {
+  --bg: #eceee9;        /* e-paper grey, faint green bias */
+  --surface: #f8f9f6;
+  --sunk: #e2e5df;
+  --line: #cfd4cc;
+  --fg: #1c1f1e;
+  --muted: #5b625d;
+  --ink: #1c1f1e;       /* primary buttons: the panel's black ink */
+  --on-ink: #f8f9f6;
+  --red: #b3262c;       /* panel red: errors, delete */
+  --yellow: #c99a0e;    /* panel yellow: Bluetooth link, progress */
+  --brand: #a8620f;     /* orange letter of the wordmark (4.1:1 on --bg, large bold text) */
+  --ok: #2c7a4b;
+  --focus: #3b6fd6;
+  --c-temp: #b3262c;    /* chart series, palette-validated (light: band, chroma, CVD, contrast) */
+  --c-hum: #2b6cb0;
+  --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --tap: 48px;
+  --tabbar: 64px;
+  --topbar: 61px;
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131615; --surface: #1c201e; --sunk: #242927; --line: #343a37; --fg: #e5e8e3; --muted: #9aa39d;
+    --ink: #e5e8e3; --on-ink: #131615; --red: #ec6a6e; --yellow: #e8be3a; --ok: #5cba83; --focus: #8fb0ff; --c-temp: #e25c60; --c-hum: #5598dc;
+    --brand: #e4a45c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131615; --surface: #1c201e; --sunk: #242927; --line: #343a37; --fg: #e5e8e3; --muted: #9aa39d;
+  --ink: #e5e8e3; --on-ink: #131615; --red: #ec6a6e; --yellow: #e8be3a; --ok: #5cba83; --focus: #8fb0ff; --c-temp: #e25c60; --c-hum: #5598dc;
+  --brand: #e4a45c;
+  color-scheme: dark;
+}
+:root[data-theme="light"] { color-scheme: light; }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; } /* Class rules set display; hidden must still win. */
+html, body { min-height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 15px/1.45 var(--font-body);
+  -webkit-tap-highlight-color: transparent;
+}
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg);
+}
+.wrap {
+  max-width: 520px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
+h2 { font-size: 20px; font-weight: 600; }
+h3 { font-size: 16px; font-weight: 600; }
+p { margin: 0; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.note { font-size: 13px; color: var(--muted); line-height: 1.45; }
+.note b { color: var(--fg); font-weight: 600; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* Top bar */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 8; background: var(--bg); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; align-items: center; gap: 10px; height: var(--topbar); }
+.brand { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.brand b { font-family: "Barlow Semi Condensed", var(--font-display); font-size: 23px; font-weight: 700; line-height: 1.1; }
+.brand b em { font-style: normal; color: var(--brand); }
+.brand span { font-size: 12px; color: var(--muted); line-height: 1.3; }
+.pill {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 16px;
+  border: 1px solid var(--line); background: var(--surface); font-size: 13px; font-weight: 500; white-space: nowrap;
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+.pill[data-state="connected"] .dot, .pill[data-state="demo"] .dot { background: var(--yellow); box-shadow: 0 0 0 3px color-mix(in srgb, var(--yellow) 25%, transparent); }
+.pill[data-state="connecting"] .dot { background: var(--yellow); animation: blink 1s infinite; }
+.pill[data-state="lost"] .dot { background: var(--red); }
+@keyframes blink { 50% { opacity: .25; } }
+.icon-btn {
+  width: var(--tap); height: var(--tap); flex: none; display: grid; place-items: center; border-radius: 50%;
+  border: 1px solid transparent; background: transparent; color: var(--fg); cursor: pointer; padding: 0; font: inherit;
+}
+.icon-btn:active { background: var(--sunk); }
+.icon-btn svg { width: 22px; height: 22px; }
+
+/* Views */
+main { padding-bottom: calc(var(--tabbar) + env(safe-area-inset-bottom, 0px) + 24px); }
+main > .wrap { display: flex; flex-direction: column; gap: 16px; padding-block: 16px; }
+.view { display: flex; flex-direction: column; gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.row > .grow { flex: 1; min-width: 0; }
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.banner { border-radius: var(--radius); padding: 12px 14px; font-size: 13px; background: var(--sunk); color: var(--fg); }
+
+/* Buttons */
+.btn {
+  min-height: var(--tap); padding: 0 18px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--fg); font: 600 15px var(--font-body); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-align: center;
+}
+.btn svg { width: 20px; height: 20px; flex: none; }
+.btn.primary { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.btn.danger { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, var(--line)); }
+.btn.danger.solid { background: var(--red); color: var(--on-ink); border-color: var(--red); }
+.btn.wide { width: 100%; }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn:not(:disabled):active { transform: translateY(1px); }
+.btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.btns.one { grid-template-columns: 1fr; }
+.filebtn { position: relative; overflow: hidden; }
+.filebtn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+/* Home: connection */
+.conn { display: flex; align-items: center; gap: 12px; }
+.conn .ble { width: 44px; height: 44px; border-radius: 12px; background: var(--sunk); display: grid; place-items: center; flex: none; }
+.conn .ble svg { width: 24px; height: 24px; color: var(--muted); }
+.conn[data-state="connected"] .ble svg, .conn[data-state="demo"] .ble svg { color: var(--yellow); }
+.conn .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.conn strong { font-family: var(--font-display); font-size: 17px; font-weight: 600; }
+.conn small { font-size: 13px; color: var(--muted); }
+
+/* Home: room climate, the main reading */
+.climate { padding: 18px 16px 16px; gap: 14px; }
+#view-home.on .climate { order: -1; } /* Connected: the room reading leads, the link card follows. */
+.climate header { display: flex; flex-direction: column; gap: 2px; }
+.climate header h2 { font-size: 18px; }
+.readings { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.reading { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.reading b { font-family: var(--font-display); font-size: clamp(36px, 11.6vw, 48px); line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.reading b small { font-size: 22px; font-weight: 500; color: var(--muted); margin-left: 2px; letter-spacing: 0; }
+.reading em { font-style: normal; font-size: 14px; font-weight: 600; }
+.climate footer { font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+
+/* Home: device facts, secondary */
+.facts { display: flex; flex-direction: column; }
+.fact { display: grid; grid-template-columns: 110px 1fr; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; align-items: baseline; }
+.fact:first-child { border-top: 0; padding-top: 0; }
+.fact dt { color: var(--muted); margin: 0; }
+.fact dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.cells { display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; margin-top: 6px; max-width: 160px; }
+.cells i { height: 6px; border-radius: 2px; background: var(--sunk); }
+.cells i.on { background: var(--fg); }
+.cells.low i.on { background: var(--red); }
+details.raw summary { cursor: pointer; font-size: 13px; color: var(--muted); min-height: 40px; display: flex; align-items: center; }
+pre.json { margin: 4px 0 0; padding: 12px; background: var(--sunk); border-radius: 10px; font: 12px/1.5 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--fg); }
+
+/* History */
+#spanSeg button { padding: 0 2px; }
+.readout {
+  position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--topbar)); z-index: 5; background: var(--bg);
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; padding: 8px 0; border-bottom: 1px solid var(--line); min-height: 44px;
+}
+.readout span { font-size: 13px; color: var(--muted); flex-basis: 100%; }
+.readout b { font-family: var(--font-display); font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; gap: 6px; }
+.readout b:empty { display: none; }
+.key { display: inline-block; width: 14px; height: 2px; border-radius: 1px; flex: none; }
+.key.t, .readout b.t::before { background: var(--c-temp); }
+.key.h, .readout b.h::before { background: var(--c-hum); }
+.readout b::before { content: ""; width: 14px; height: 2px; border-radius: 1px; }
+.chart { gap: 8px; }
+.chart-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.chart-head h3 { display: flex; align-items: center; gap: 8px; }
+.chart-head small { font-size: 13px; color: var(--muted); }
+.chart canvas { width: 100%; height: 190px; display: block; touch-action: pan-y; cursor: crosshair; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 0; }
+.stats div { display: flex; flex-direction: column; min-width: 0; }
+@media (max-width: 400px) { .stats { grid-template-columns: 1fr 1fr; row-gap: 10px; } }
+.stats dt { font-size: 12px; color: var(--muted); margin: 0; }
+.stats dd { margin: 0; font-family: var(--font-display); font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stats dd small { display: block; font-family: var(--font-body); font-size: 12px; font-weight: 400; color: var(--muted); }
+.tablewrap { overflow-x: auto; max-height: 360px; overflow-y: auto; margin-top: 4px; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.tbl th, .tbl td { padding: 6px 8px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.tbl th:first-child, .tbl td:first-child { text-align: left; }
+.tbl thead th { position: sticky; top: 0; background: var(--surface); color: var(--muted); font-weight: 600; }
+
+/* Images */
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.thumb { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; min-width: 0; position: relative; }
+.thumb .pic { border: 0; padding: 0; background: #fff; cursor: pointer; display: block; width: 100%; aspect-ratio: 1; position: relative; }
+.thumb canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+.thumb .badge { position: absolute; left: 8px; top: 8px; font-style: normal; font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 10px; background: var(--fg); color: var(--bg); }
+.thumb .tick { position: absolute; right: 10px; top: 10px; width: 26px; height: 26px; border-radius: 8px; border: 2px solid #fff; background: color-mix(in srgb, #000 30%, transparent); }
+.thumb[aria-checked="true"] { border-color: var(--red); box-shadow: 0 0 0 2px var(--red); }
+.thumb[aria-checked="true"] .tick { background: var(--red); border-color: var(--red); }
+.thumb .name { padding: 8px 10px 10px; font: 12px/1.3 var(--font-mono); overflow-wrap: anywhere; min-height: 40px; }
+.thumb .del {
+  position: absolute; right: 4px; top: 4px; width: 44px; height: 44px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+  display: grid; place-items: center; background: transparent; color: #fff;
+}
+.thumb .del svg { width: 20px; height: 20px; padding: 6px; box-sizing: content-box; border-radius: 50%; background: color-mix(in srgb, #000 55%, transparent); }
+.seg.icons { grid-auto-columns: 44px; }
+.seg.icons button { min-height: 40px; padding: 0; display: grid; place-items: center; }
+.seg.icons svg { width: 20px; height: 20px; }
+.list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+.line { display: flex; align-items: center; border-top: 1px solid var(--line); min-height: 52px; }
+.line:first-child { border-top: 0; }
+.line .pick { flex: 1; min-width: 0; min-height: 52px; display: flex; align-items: center; gap: 10px; padding: 6px 4px 6px 14px; border: 0; background: transparent; color: var(--fg); text-align: left; cursor: pointer; font: inherit; }
+.line .pick:active { background: var(--sunk); }
+.line .pick span { flex: 1; min-width: 0; font: 13px/1.35 var(--font-mono); overflow-wrap: anywhere; }
+.line .pick em { font-style: normal; font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 10px; background: var(--fg); color: var(--bg); white-space: nowrap; }
+.line .pick i { width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--line); flex: none; }
+.line[aria-checked="true"] { background: color-mix(in srgb, var(--red) 8%, transparent); }
+.line[aria-checked="true"] .pick i { background: var(--red); border-color: var(--red); }
+.line .icon-btn { width: 48px; height: 48px; color: var(--muted); border-radius: 12px; }
+.line .icon-btn svg { width: 20px; height: 20px; }
+.empty { text-align: center; padding: 28px 16px; align-items: center; }
+.empty svg { width: 40px; height: 40px; color: var(--muted); }
+.result { display: block; font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
+.result[data-kind="ok"] { color: var(--ok); }
+.result[data-kind="err"] { color: var(--red); }
+.result[data-kind="busy"] { color: var(--muted); }
+.spec { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; font-size: 13px; }
+.spec dt { color: var(--muted); margin: 0; }
+.spec dd { margin: 0; font-family: var(--font-mono); font-size: 12px; overflow-wrap: anywhere; }
+
+/* Create: pinned viewer */
+.viewer {
+  position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--topbar)); z-index: 6;
+  margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))) calc(-1 * max(16px, env(safe-area-inset-right, 0px)));
+  padding: 10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px));
+  background: var(--bg); border-bottom: 1px solid var(--line);
+  display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: 12px; align-items: start;
+}
+.stage { position: relative; width: 100%; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: #fff; touch-action: none; border: 1px solid var(--line); }
+.stage canvas { width: 100%; height: 100%; display: block; cursor: grab; image-rendering: pixelated; }
+.stage canvas.photo { image-rendering: auto; }
+.stage .hint { position: absolute; left: 6px; bottom: 6px; font-size: 12px; padding: 2px 6px; border-radius: 6px; background: color-mix(in srgb, #000 55%, transparent); color: #fff; pointer-events: none; }
+.side { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--sunk); border-radius: 12px; padding: 4px; gap: 4px; }
+.seg.stack { grid-auto-flow: row; }
+.seg button { min-height: 40px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font: 600 14px var(--font-body); cursor: pointer; padding: 0 6px; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 2px color-mix(in srgb, var(--fg) 18%, transparent); }
+.share { display: flex; flex-direction: column; gap: 3px; }
+.share div { display: flex; align-items: center; gap: 6px; font: 12px var(--font-mono); color: var(--muted); }
+.share i { width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--line); flex: none; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field > label, .field > .lab { font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; gap: 8px; }
+.field output { font-family: var(--font-mono); font-weight: 400; color: var(--muted); }
+input[type="range"] { width: 100%; height: 44px; accent-color: var(--fg); margin: 0; }
+select, input[type="text"], input[type="password"] {
+  width: 100%; min-height: var(--tap); padding: 0 12px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--fg); font: 15px var(--font-body);
+}
+input.mono { font-family: var(--font-mono); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.inks { display: flex; gap: 10px; }
+.inks button { width: var(--tap); height: var(--tap); border-radius: 12px; border: 2px solid var(--line); cursor: pointer; }
+.inks button[aria-pressed="true"] { border-color: var(--fg); box-shadow: 0 0 0 2px var(--bg) inset; }
+details.more summary { cursor: pointer; font-weight: 600; font-size: 14px; min-height: var(--tap); display: flex; align-items: center; list-style: none; gap: 8px; }
+details.more summary::-webkit-details-marker { display: none; }
+details.more summary::after { content: "+"; margin-left: auto; font-family: var(--font-mono); color: var(--muted); }
+details.more[open] summary::after { content: "−"; }
+details.more > div { display: flex; flex-direction: column; gap: 14px; padding-top: 4px; }
+.check { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; }
+.check input { width: 22px; height: 22px; accent-color: var(--fg); }
+.msg { font-size: 13px; color: var(--red); }
+.fname { font-family: var(--font-mono); font-size: 14px; overflow-wrap: anywhere; }
+.progress { height: 6px; border-radius: 3px; background: var(--sunk); overflow: hidden; }
+.progress i { display: block; height: 100%; width: 0; background: var(--yellow); transition: width .15s linear; }
+.pw { display: flex; gap: 8px; }
+.pw input { flex: 1; min-width: 0; }
+.pw .btn { padding: 0 12px; flex: none; }
+.lock { display: flex; align-items: center; gap: 10px; }
+.lock svg { width: 20px; height: 20px; color: var(--muted); flex: none; }
+
+/* Dock: send button above the tab bar while on Create */
+.dock {
+  position: fixed; left: 0; right: 0; bottom: calc(var(--tabbar) + env(safe-area-inset-bottom, 0px)); z-index: 6;
+  background: color-mix(in srgb, var(--bg) 94%, transparent); backdrop-filter: blur(8px); border-top: 1px solid var(--line);
+}
+.dock .wrap { padding-block: 10px; display: flex; flex-direction: column; gap: 8px; }
+body.docked main { padding-bottom: calc(var(--tabbar) + env(safe-area-inset-bottom, 0px) + 150px); }
+
+/* Tab bar */
+.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 7; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.tabs .wrap { display: grid; grid-template-columns: repeat(4, 1fr); height: var(--tabbar); }
+.tabs button {
+  border: 0; background: transparent; color: var(--muted); font: 600 12px var(--font-body); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: var(--tap); padding: 0;
+}
+.tabs button svg { width: 24px; height: 24px; }
+.tabs button[aria-current="page"] { color: var(--fg); }
+.tabs button[aria-current="page"] .ico { background: var(--sunk); }
+.tabs .ico { display: grid; place-items: center; width: 56px; height: 30px; border-radius: 15px; }
+
+/* Sheet and toast */
+.scrim { position: fixed; inset: 0; z-index: 20; background: color-mix(in srgb, #000 45%, transparent); display: flex; align-items: flex-end; }
+.sheet {
+  width: 100%; max-width: 520px; margin: 0 auto; background: var(--surface); border-radius: 20px 20px 0 0;
+  padding: 20px max(16px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  display: flex; flex-direction: column; gap: 14px;
+}
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 30; bottom: calc(var(--tabbar) + env(safe-area-inset-bottom, 0px) + 16px);
+  max-width: calc(100% - 32px); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-size: 14px; font-weight: 500;
+}
+body.docked .toast { bottom: calc(var(--tabbar) + env(safe-area-inset-bottom, 0px) + 130px); }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+<!-- BUILD:HEAD-END -->
+</head>
+<body>
+<!-- BUILD:BODY-START -->
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><b>Eddie <em>D</em>-Lab</b><span>Room climate monitor</span></div>
+    <span class="pill" id="pill" data-state="idle"><span class="dot"></span><span id="pillText">Not connected</span></span>
+    <button class="icon-btn" id="themeBtn" type="button" aria-label="Theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"></svg>
+    </button>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <p class="banner" id="previewNote" hidden><b>Preview.</b> Bluetooth is blocked inside this preview, so it runs a demo board with example data. Demo sign-in: any name and password; the first ones you use become the demo login.</p>
+
+    <!-- HOME -->
+    <section class="view" id="view-home" aria-label="Home">
+      <div class="card">
+        <div class="conn" id="conn" data-state="idle">
+          <div class="ble"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 7 10 10-5 5V2l5 5L7 17"></path></svg></div>
+          <div class="grow"><strong id="connTitle">Not connected</strong><small id="connSub">Board name: eddie-device</small></div>
+        </div>
+        <div class="btns" id="connBtns">
+          <button class="btn primary" id="connectBtn" type="button">Connect</button>
+          <button class="btn" id="demoBtn" type="button">Try demo</button>
+        </div>
+        <p class="note" id="connHelp">Plugged into USB, the board is always visible. On battery, hold <b>BOOT</b> for 2 s: it stays visible for 5 minutes.</p>
+      </div>
+
+      <div class="card climate">
+        <header>
+          <span class="eyebrow">Room climate</span>
+          <h2>What the board measures around it</h2>
+        </header>
+        <div class="readings">
+          <div class="reading"><em>Temperature</em><b id="rTemp">–<small>°C</small></b></div>
+          <div class="reading"><em>Humidity</em><b id="rHum">–<small>%</small></b></div>
+        </div>
+        <button class="btn" id="historyBtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"></path><path d="m7 15 4-5 3 3 5-6"></path></svg>History and graph</button>
+      </div>
+
+      <div class="card">
+        <span class="eyebrow">This device</span>
+        <dl class="facts">
+          <div class="fact"><dt>Battery</dt><dd><span id="dBat">–</span><div class="cells" id="dBatCells" aria-hidden="true"></div></dd></div>
+          <div class="fact"><dt>Firmware</dt><dd id="dVer">–</dd></div>
+          <div class="fact"><dt>Wi-Fi</dt><dd id="dIp">–</dd></div>
+          <div class="fact"><dt>Running for</dt><dd id="dUp">–</dd></div>
+        </dl>
+        <details class="raw">
+          <summary>Raw status (same JSON as /api/status)</summary>
+          <pre class="json" id="rawJson">No reading yet.</pre>
+        </details>
+      </div>
+    </section>
+
+    <!-- HISTORY (from Home) -->
+    <section class="view" id="view-history" aria-label="Climate history" hidden>
+      <div class="row">
+        <button class="icon-btn" id="histBack" type="button" aria-label="Back to Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg></button>
+        <div class="grow"><h2>Climate history</h2><p class="small muted">From the log on the SD card, one sample every 15 min</p></div>
+      </div>
+      <div class="seg" id="spanSeg" role="group" aria-label="Time range">
+        <button type="button" data-s="86400" aria-pressed="true">Day</button>
+        <button type="button" data-s="604800" aria-pressed="false">Week</button>
+        <button type="button" data-s="2592000" aria-pressed="false">Month</button>
+        <button type="button" data-s="31536000" aria-pressed="false">Year</button>
+        <button type="button" data-s="0" aria-pressed="false">All</button>
+      </div>
+      <output class="result" id="histResult" data-kind="" hidden></output>
+      <div class="readout" id="readout" aria-live="polite"><span id="roTime">Touch a graph to read a time</span><b class="t" id="roTemp"></b><b class="h" id="roHum"></b></div>
+
+      <div class="card chart">
+        <div class="chart-head"><h3><i class="key t" aria-hidden="true"></i>Temperature</h3><small class="mono">°C</small></div>
+        <dl class="stats" id="statsT"></dl>
+        <canvas id="chartT" aria-label="Temperature over the chosen range"></canvas>
+      </div>
+      <div class="card chart">
+        <div class="chart-head"><h3><i class="key h" aria-hidden="true"></i>Humidity</h3><small class="mono">%</small></div>
+        <dl class="stats" id="statsH"></dl>
+        <canvas id="chartH" aria-label="Humidity over the chosen range"></canvas>
+      </div>
+
+      <details class="card raw" id="tableBox">
+        <summary id="tableSum">Table</summary>
+        <div class="tablewrap"><table class="tbl" id="histTable"></table></div>
+      </details>
+      <p class="note" id="histInfo"></p>
+      <p class="note">Shaded band: lowest to highest in each slice of time. Line: the average. A break in the line means no samples for over an hour (board off or no card). Samples taken before the clock was set are left out, as on the web page.</p>
+    </section>
+
+    <!-- IMAGES -->
+    <section class="view" id="view-images" aria-label="Images" hidden>
+      <div class="row">
+        <div class="grow"><h2>On the SD card</h2><p class="small muted" id="imgCount">–</p></div>
+        <div class="seg icons" id="layoutSeg" role="group" aria-label="Layout">
+          <button type="button" data-l="grid" aria-pressed="true" aria-label="Thumbnails"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1"></rect><rect x="13" y="4" width="7" height="7" rx="1"></rect><rect x="4" y="13" width="7" height="7" rx="1"></rect><rect x="13" y="13" width="7" height="7" rx="1"></rect></svg></button>
+          <button type="button" data-l="list" aria-pressed="false" aria-label="List, no thumbnails"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+        </div>
+        <button class="btn" id="selectBtn" type="button">Select</button>
+      </div>
+      <div class="btns" id="imgActions">
+        <label class="btn filebtn" id="uploadLabel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"></path></svg>Upload .bmp<input type="file" id="bmpFile" accept=".bmp,image/bmp"></label>
+        <button class="btn" id="makeBtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>From a photo</button>
+      </div>
+      <output class="result" id="upResult" data-kind="" hidden></output>
+      <div class="progress" id="upProg" hidden><i id="upBar"></i></div>
+      <div id="imgArea"></div>
+      <div class="btns one" id="delBar" hidden><button class="btn danger solid" id="delBtn" type="button" disabled>Delete</button></div>
+      <div class="card">
+        <span class="eyebrow">What the card accepts</span>
+        <dl class="spec">
+          <dt>Upload .bmp</dt><dd>24-bit BMP, 200 × 200 px, 120,054 B (limit 130 KB)</dd>
+          <dt>Colours</dt><dd>black, white, yellow, red; other colours turn white</dd>
+          <dt>Any other photo</dt><dd>use From a photo: JPG, PNG, WebP, GIF</dd>
+          <dt>File name</dt><dd>A–Z a–z 0–9 _ -, up to 78 characters</dd>
+        </dl>
+        <p class="note lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg><span>Adding or deleting pictures needs sign-in with the board's user and password, the same as its web page.</span></p>
+        <p class="note">Tap a picture to put it on the display. A full refresh of the 4-colour panel takes about 20 s.</p>
+      </div>
+    </section>
+
+    <!-- CREATE -->
+    <section class="view" id="view-create" aria-label="Create" hidden>
+      <div class="viewer">
+        <div class="stage"><canvas id="viewCanvas" width="200" height="200" aria-label="The 200 x 200 picture. Drag to move, pinch to zoom."></canvas><span class="hint">Drag · pinch</span></div>
+        <div class="side">
+          <div class="seg stack" id="viewSeg" role="group" aria-label="Show">
+            <button type="button" data-v="result" aria-pressed="true">4 colours</button>
+            <button type="button" data-v="photo" aria-pressed="false">Photo</button>
+          </div>
+          <div class="share" id="share"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <span class="eyebrow">Picture</span>
+        <label class="btn primary filebtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-5-5L5 21"></path></svg>Choose a photo<input type="file" id="file" accept="image/*"></label>
+        <output class="result" id="loadResult" data-kind="">Sample picture loaded.</output>
+        <p class="note">Opens JPG, PNG, WebP, GIF and BMP from the phone. HEIC may not open: share it as JPG first. The result is <b>200 × 200 px</b> in <b>4 colours</b>, saved as a 24-bit BMP of <b>120,054 B</b>.</p>
+      </div>
+
+      <div class="card">
+        <span class="eyebrow">Crop</span>
+        <div class="seg" id="fitSeg" role="group" aria-label="Fit">
+          <button type="button" data-fit="cover" aria-pressed="true">Fill frame</button>
+          <button type="button" data-fit="contain" aria-pressed="false">Whole picture</button>
+        </div>
+        <div class="field"><label for="zoom">Zoom <output id="zoomOut">100%</output></label><input type="range" id="zoom" min="100" max="400" value="100"></div>
+        <div class="field" id="padField" hidden><span class="lab">Border colour</span>
+          <div class="inks" id="padInks">
+            <button type="button" data-c="#ffffff" aria-label="White" aria-pressed="true" style="background:#ffffff"></button>
+            <button type="button" data-c="#000000" aria-label="Black" aria-pressed="false" style="background:#000000"></button>
+            <button type="button" data-c="#ffff00" aria-label="Yellow" aria-pressed="false" style="background:#ffff00"></button>
+            <button type="button" data-c="#ff0000" aria-label="Red" aria-pressed="false" style="background:#ff0000"></button>
+          </div>
+        </div>
+        <button class="btn" id="resetCrop" type="button">Centre again</button>
+      </div>
+
+      <div class="card">
+        <span class="eyebrow">Colours</span>
+        <div class="field"><label for="brightness">Brightness <output id="brightnessOut">0</output></label><input type="range" id="brightness" min="-100" max="100" value="0"></div>
+        <div class="field"><label for="contrast">Contrast <output id="contrastOut">0</output></label><input type="range" id="contrast" min="-100" max="100" value="0"></div>
+        <div class="field"><label for="saturation">Saturation <output id="saturationOut">30</output></label><input type="range" id="saturation" min="-100" max="100" value="30"></div>
+        <details class="more">
+          <summary>Dithering and matching</summary>
+          <div>
+            <div class="field"><label for="dither">Dither</label>
+              <select id="dither">
+                <option value="floyd">Floyd–Steinberg</option>
+                <option value="atkinson">Atkinson</option>
+                <option value="bayer4">Bayer 4 × 4</option>
+                <option value="bayer8">Bayer 8 × 8</option>
+                <option value="none">None</option>
+              </select>
+              <span class="note" id="ditherNote">Spreads each pixel's colour error to 4 neighbours. Smooth photos, fine grain.</span></div>
+            <div class="field"><label for="strength">Strength <output id="strengthOut">100%</output></label><input type="range" id="strength" min="0" max="100" value="100"></div>
+            <div class="field"><label for="gamma">Gamma <output id="gammaOut">1.00</output></label><input type="range" id="gamma" min="40" max="250" value="100"></div>
+            <div class="two">
+              <div class="field"><label for="metric">Distance</label>
+                <select id="metric"><option value="redmean">Redmean</option><option value="lab">CIE Lab</option><option value="rgb">Plain RGB</option></select></div>
+              <div class="field"><label for="matchPal">Match to</label>
+                <select id="matchPal"><option value="pure">Pure inks</option><option value="panel">Panel estimate</option></select></div>
+            </div>
+            <label class="check"><input type="checkbox" id="serp" checked> Zigzag scan (fewer streaks)</label>
+            <label class="check"><input type="checkbox" id="panelLook"> Preview in estimated panel colours</label>
+          </div>
+        </details>
+        <button class="btn" id="resetAdj" type="button">Reset colours</button>
+      </div>
+
+      <div class="card">
+        <span class="eyebrow">Save as</span>
+        <div class="two">
+          <div class="field"><label for="name">File name</label><input type="text" class="mono" id="name" value="sunset" spellcheck="false" autocapitalize="off" autocomplete="off"></div>
+          <div class="field"><label for="seq">Number</label><input type="text" class="mono" id="seq" inputmode="numeric" placeholder="none" autocomplete="off"></div>
+        </div>
+        <p class="msg" id="nameMsg" role="status" hidden></p>
+        <div class="field"><label for="rotate">Rotate on the panel</label>
+          <select id="rotate"><option value="0">0°</option><option value="90">90° right</option><option value="180">180°</option><option value="270">90° left</option></select></div>
+        <p class="note">On the card as <span class="fname" id="finalName">sunset.bmp</span> · 120,054 B. A number in front sets the order on the card.</p>
+        <button class="btn" id="saveBtn" type="button">Save .bmp to this phone</button>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" id="view-settings" aria-label="Settings" hidden>
+      <div class="card">
+        <span class="eyebrow">Sign-in</span>
+        <div class="row"><div class="grow"><strong id="authTitle">Not signed in</strong><p class="note" id="authSub">Needed to add or delete pictures and to change Wi-Fi or the login.</p></div>
+          <button class="btn" id="authBtn" type="button">Sign in</button></div>
+        <p class="note">Same user and password as the board's web page. A sign-in lasts 20 minutes.</p>
+        <p class="note"><b>First time on this phone:</b> Android asks for a PIN. The board draws a 6-digit PIN on its screen, which takes about 20 s. Type it in; the phone then stays paired.</p>
+      </div>
+
+      <div class="card">
+        <span class="eyebrow">Wi-Fi</span>
+        <dl class="spec"><dt>Network</dt><dd id="wNet">–</dd><dt>Address</dt><dd id="wIp">–</dd></dl>
+        <div class="field"><label for="ssid">New network name</label><input type="text" id="ssid" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="SSID"></div>
+        <div class="field"><label for="wpass">Password</label>
+          <div class="pw"><input type="password" id="wpass" autocomplete="off"><button class="btn" type="button" data-show="wpass">Show</button></div></div>
+        <button class="btn primary" id="joinBtn" type="button">Join this network</button>
+        <output class="result" id="joinResult" data-kind="" hidden></output>
+        <p class="note">2.4 GHz networks only. If the new network fails, the board stays on the old one. The board never sends a saved password back.</p>
+      </div>
+
+      <div class="card">
+        <span class="eyebrow">Board login</span>
+        <div class="field"><label for="nu">New user name</label><input type="text" id="nu" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+        <div class="field"><label for="np">New password</label>
+          <div class="pw"><input type="password" id="np" autocomplete="new-password"><button class="btn" type="button" data-show="np">Show</button></div></div>
+        <div class="field"><label for="np2">New password again</label><input type="password" id="np2" autocomplete="new-password"></div>
+        <button class="btn primary" id="loginSaveBtn" type="button">Change login</button>
+        <output class="result" id="loginResult" data-kind="" hidden></output>
+        <p class="note">User name 1–32 characters, password 1–64. Used by this app and by the web page. Changing it signs you out.</p>
+      </div>
+
+      <div class="card">
+        <span class="eyebrow">Appearance</span>
+        <div class="seg" id="themeSeg" role="group" aria-label="Theme">
+          <button type="button" data-t="system" aria-pressed="true">System</button>
+          <button type="button" data-t="light" aria-pressed="false">Light</button>
+          <button type="button" data-t="dark" aria-pressed="false">Dark</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <span class="eyebrow">About</span>
+        <dl class="spec">
+          <dt>Board</dt><dd>eddie-device · ESP32-S3 e-paper 1.54", 200 × 200, 4 colours</dd>
+          <dt>Service</dt><dd style="white-space:pre-line">2b8b0000-4f77-4c68-
+bd41-fecbe7432412</dd>
+          <dt>App</dt><dd>prototype 2026-11-12</dd>
+        </dl>
+      </div>
+    </section>
+  </div>
+</main>
+
+<div class="dock" id="dock" hidden>
+  <div class="wrap">
+    <div class="progress" id="sendProg" hidden><i id="sendBar"></i></div>
+    <output class="result" id="sendResult" data-kind="" hidden></output>
+    <button class="btn primary wide" id="sendBtn" type="button">Send to display</button>
+  </div>
+</div>
+
+<nav class="tabs" aria-label="Sections">
+  <div class="wrap">
+    <button type="button" data-view="home" aria-current="page"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0z"></path></svg></span>Home</button>
+    <button type="button" data-view="images"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1.5"></rect><rect x="13" y="3" width="8" height="8" rx="1.5"></rect><rect x="3" y="13" width="8" height="8" rx="1.5"></rect><rect x="13" y="13" width="8" height="8" rx="1.5"></rect></svg></span>Images</button>
+    <button type="button" data-view="create"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></span>Create</button>
+    <button type="button" data-view="settings"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg></span>Settings</button>
+  </div>
+</nav>
+
+<div class="scrim" id="scrim" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <h3 id="sheetTitle">Delete images?</h3>
+    <p class="muted" id="sheetText"></p>
+    <div class="btns">
+      <button class="btn" id="sheetNo" type="button">Cancel</button>
+      <button class="btn danger solid" id="sheetYes" type="button">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="scrim" id="signScrim" hidden>
+  <form class="sheet" id="signForm" role="dialog" aria-modal="true" aria-labelledby="signTitle">
+    <h3 id="signTitle">Sign in to the board</h3>
+    <p class="note" id="signWhy">Adding or deleting pictures needs the board's user and password.</p>
+    <div class="field"><label for="su">User name</label><input type="text" id="su" autocomplete="username" autocapitalize="off" spellcheck="false"></div>
+    <div class="field"><label for="sp">Password</label><input type="password" id="sp" autocomplete="current-password"></div>
+    <output class="result" id="signResult" data-kind="" hidden></output>
+    <div class="btns">
+      <button class="btn" id="signNo" type="button">Cancel</button>
+      <button class="btn primary" id="signYes" type="submit">Sign in</button>
+    </div>
+  </form>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>window.EDDIE_PWA = true; // Packed app: register sw.js.</script>
+<script src="epd-core.js"></script>
+<script src="ble-app.js"></script>
+<!-- BUILD:BODY-END -->
+</body>
+</html>
