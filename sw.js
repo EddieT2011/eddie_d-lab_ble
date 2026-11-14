@@ -3,7 +3,7 @@
  * Same-origin GETs come from the cache at once and are refreshed from the network in the background
  * (stale-while-revalidate), so a new version shows on the next start. Bump VERSION to drop old caches.
  */
-const VERSION = 'eddie-remote-v1';
+const VERSION = 'eddie-remote-v2';
 const SHELL = ['./', './index.html', './ble-app.js', './epd-core.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png'];
 

@@ -199,7 +199,8 @@
         return out;
       });
     }
-    async status() { return JSON.parse(new TextDecoder().decode(await this.chars.status.readValue())); }
+    // In the queue with the commands: Chrome on Android refuses a read while an upload is writing.
+    status() { return this.serial(async () => JSON.parse(new TextDecoder().decode(await this.chars.status.readValue()))); }
     async signIn(user, password) {
       try { await this.command('login ' + user + ' ' + password); return true; } catch (e) { if (e.code === 'bad_login') return false; throw e; }
     }
